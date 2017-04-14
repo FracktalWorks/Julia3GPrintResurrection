@@ -3,16 +3,17 @@ Information of current file stored
 <br>
 <form class="form-horizontal">
     <div class="control-group">
-        <label class="control-label">{{ _('FileName:') }}</label>
-        <div class="controls" data-toggle="tooltip" title="{{ _('Name of the file that was stored') }}">
-            <input type="text" class="input-mini text-right" data-bind="value: settings.plugins.Julia3GPrintResurrection.fileName">
-            <span class="add-on">ms</span>
+        <label class="control-label">{{ _('File Name') }}</label>
+        <div class="controls controls-row">
+            <div class="span8">
+                <input class="input-block-level" type="text" data-bind="value: settings.plugins.Julia3GPrintResurrection.fileName">
+            </div>
         </div>
     </div>
     <div class="control-group">
-        <label class="control-label">{{ _('FilePos:') }}</label>
-        <div class="controls" data-toggle="tooltip" title="{{ _('File position') }}">
-            <input type="text" class="input-mini text-right" data-bind="value: settings.plugins.Julia3GPrintResurrection.filePos">
+        <label class="control-label">{{ _('File Position:') }}</label>
+        <div class="controls" data-toggle="tooltip" title="{{ _('File Position') }}">
+            <input type="number" step="any" min="0" class="input-mini text-right" data-bind="value: settings.plugins.Julia3GPrintResurrection.filePos">
             <span class="add-on">ms</span>
         </div>
     </div>

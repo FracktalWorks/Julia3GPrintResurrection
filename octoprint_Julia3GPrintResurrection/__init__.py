@@ -39,6 +39,8 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
         :return: None
         '''
 		self.DET_Pin = int(self._settings.get(["DET_Pin"]))
+		self.fileName = str(self._settings.get(["fileName"]))
+		self.filePos = int(self._settings.get(["filePos"]))
 		try:
 			GPIO.setup(self.DET_Pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 		except:
