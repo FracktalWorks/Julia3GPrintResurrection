@@ -1,0 +1,19 @@
+<h4>{{ _('Julia3G Print Resurrection') }}</h4>
+Information of current file stored
+<br>
+<form class="form-horizontal">
+    <div class="control-group">
+        <label class="control-label">{{ _('FileName:') }}</label>
+        <div class="controls" data-toggle="tooltip" title="{{ _('Name of the file that was stored') }}">
+            <input type="text" class="input-mini text-right" data-bind="value: settings.plugins.Julia3GPrintResurrection.fileName">
+            <span class="add-on">ms</span>
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label">{{ _('FilePos:') }}</label>
+        <div class="controls" data-toggle="tooltip" title="{{ _('File position') }}">
+            <input type="text" class="input-mini text-right" data-bind="value: settings.plugins.Julia3GPrintResurrection.filePos">
+            <span class="add-on">ms</span>
+        </div>
+    </div>
+</form>
