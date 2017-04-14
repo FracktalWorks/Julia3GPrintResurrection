@@ -59,11 +59,11 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
         '''
 		return dict(
 			DET_Pin=19,  # MKS_DET
-			fileName=None,
-			filePos=None,
-			tool0Target=None,
-			tool1Target=None,
-			bedTarget=None,
+			fileName="None",
+			filePos=0,
+			tool0Target=0,
+			tool1Target=0,
+			bedTarget=0,
 		)
 
 	def on_event(self, event, payload):
@@ -98,14 +98,12 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 
 	def saveProgress(self):
 		self._printer.pause_print()
-		jobInfo = get_current_job()
-		print jobInfo
-		tempInfo = get_current_temperatures()
-		print tempInfo
-		data = {"fileName": jobInfo["job"]["file"]["name"], "filePos": jobInfo["progress"]["filepos"],
-				"tool0Target": tempInfo["tool0"]["target"],
-				"tool1Target": tempInfo["tool1"]["target"],
-				"bedTarget": tempInfo["bed"]["target"]}
+		temps =  self._printer.get_current_temperatures()
+		file = self._printer.get_current_data()
+		data = {"fileName": file["job"]["file"]["name"], "filePos": file["progress"]["filepos"],
+				"tool0Target": temps["tool0"]["target"],
+				"tool1Target": temps["tool1"]["target"],
+				"bedTarget": temps["bed"]["target"]}
 		print data
 		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 
@@ -127,17 +125,6 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 
 	def on_settings_save(self, data):
 		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
-		self.motorExtrusion.minExtrudeTime = int(self._settings.get(["minExtrudeTime"]))
-		self.sensor0.filamentRunoutTime = int(self._settings.get(["filamentRunoutTime"]))
-		self.sensor1.filamentRunoutTime = int(self._settings.get(["filamentRunoutTime"]))
-		self.sensorCount = int(self._settings.get(["sensorCount"]))
-		self._logger.info("Filament Sensor: New Settings Injected")
-
-		if self._printer.is_printing() or self._printer.is_paused():
-			if self.sensorCount == -1:
-				self.dissableFilamentSensing()
-			elif self.sensorCount == 2:
-				self.enableFilamentSensing()
 
 
 __plugin_name__ = "Julia3GPrintResurrection"
