@@ -41,6 +41,18 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.DET_Pin = int(self._settings.get(["DET_Pin"]))
 		self.fileName = str(self._settings.get(["fileName"]))
 		self.filePos = int(self._settings.get(["filePos"]))
+		self.path = str(self._settings.get(["path"]))
+		self.tool0Target = int(self._settings.get(["tool0Target"]))
+		self.tool1Target = int(self._settings.get(["tool1Target"]))
+		self.bedTarget = int(self._settings.get(["bedTarget"]))
+		self.x = int(self._settings.get(["x"]))
+		self.y = int(self._settings.get(["y"]))
+		self.z = int(self._settings.get(["z"]))
+		self.e = int(self._settings.get(["e"]))
+		self.t = int(self._settings.get(["t"]))
+		self.f = int(self._settings.get(["f"]))
+		self.data = {}
+		self.savingProgress = False
 		try:
 			GPIO.setup(self.DET_Pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 		except:
@@ -60,10 +72,17 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		return dict(
 			DET_Pin=19,  # MKS_DET
 			fileName="None",
+			path="None",
 			filePos=0,
 			tool0Target=0,
 			tool1Target=0,
 			bedTarget=0,
+			x = 0,
+			y = 0,
+			z = 0,
+			e = 0,
+			t = 0,
+			f = 0
 		)
 
 	def on_event(self, event, payload):
@@ -81,6 +100,17 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 				Events.PRINT_DONE, Events.PRINT_FAILED, Events.PRINT_CANCELLED, Events.ERROR):
 			self.dissableDET()
 			self._logger.info("Dissabling DET module")
+		elif (event in Events.PRINT_PAUSED) and (self.savingProgress == True):
+			self.data["e"] = payload["position"]["e"]
+			self.data["z"] = payload["position"]["z"]
+			self.data["y"] = payload["position"]["y"]
+			self.data["x"] = payload["position"]["x"]
+			self.data["t"] = payload["position"]["t"]
+			self.data["f"] = payload["position"]["f"]
+			self.on_settings_save(self.data)
+			self.savingProgress = False
+			self._logger.info("Print Resurrection: Print Progress saved")
+
 
 	def get_template_configs(self):
 		return [dict(type="settings", custom_bindings=False)]
@@ -95,17 +125,70 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		# return an error or success
 		return jsonify(status='progress saved')
 
+	@octoprint.plugin.BlueprintPlugin.route("/resurrect", methods=["GET"])
+	def resurrectAPI(self):
+		'''
+		Checks and sends the pin configuration of the filament sensor(s)
+		:return: response  dict of the pin configuration
+		'''
+		self.resurrect()
+		# return an error or success
+		return jsonify(status='resurrected')
+
+	def resurrect(self):
+		if self.fileName != "None":
+			self._printer.home("x", "y", "z")
+			if self.bedTarget > 0:
+				self._printer.set_temperature("bed", self.bedTarget)
+			if self.tool0Target > 0:
+				self._printer.set_temperature("tool0", self.bedTarget)
+			if self.tool1Target > 0:
+				self._printer.set_temperature("tool1", self.bedTarget)
+
+			filenameToSelect = self._file_manager.path_on_disk("local", self.path)
+			self._printer.select_file(path=filenameToSelect, sd=False, printAfterSelect=True, pos=self.filePos)
+
 
 	def saveProgress(self):
-		self._printer.pause_print()
-		temps =  self._printer.get_current_temperatures()
-		file = self._printer.get_current_data()
-		data = {"fileName": file["job"]["file"]["name"], "filePos": file["progress"]["filepos"],
-				"tool0Target": temps["tool0"]["target"],
-				"tool1Target": temps["tool1"]["target"],
-				"bedTarget": temps["bed"]["target"]}
-		print data
+		try:
+			self._printer.pause_print()
+			temps =  self._printer.get_current_temperatures()
+			file = self._printer.get_current_data()
+			self.data = {"fileName": file["job"]["file"]["name"], "filePos": file["progress"]["filepos"],
+					"path": file["job"]["file"]["path"],
+					"tool0Target": temps["tool0"]["target"],
+					"tool1Target": temps["tool1"]["target"],
+					"bedTarget": temps["bed"]["target"]}
+			self.savingProgress = True
+		except:
+			self.data = {"fileName": "None", "filePos": 0,
+					"path" : "None",
+					"tool0Target": 0,
+					"tool1Target": 0,
+					"bedTarget": 0,
+					"x": 0,
+					"y": 0,
+					"z": 0,
+					"e": 0,
+					"t": 0,
+					"f": 0,}
+			self.on_settings_save(self.data)
+			self._logger.info("Could not save settings, restoring defaults")
+
+	def on_settings_save(self, data):
 		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
+		self.fileName = str(self._settings.get(["fileName"]))
+		self.filePos = int(self._settings.get(["filePos"]))
+		self.path = str(self._settings.get(["path"]))
+		self.tool0Target = int(self._settings.get(["tool0Target"]))
+		self.tool1Target = int(self._settings.get(["tool1Target"]))
+		self.bedTarget = int(self._settings.get(["bedTarget"]))
+		self.x = int(self._settings.get(["x"]))
+		self.y = int(self._settings.get(["y"]))
+		self.z = int(self._settings.get(["z"]))
+		self.e = int(self._settings.get(["e"]))
+		self.t = int(self._settings.get(["t"]))
+		self.f = int(self._settings.get(["f"]))
 
 	def get_update_information(self):
 		return dict(
@@ -122,10 +205,6 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 				pip="https://github.com/FracktalWorks/Julia3GPrintResurrection/archive/{target_version}.zip"
 			)
 		)
-
-	def on_settings_save(self, data):
-		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
-
 
 __plugin_name__ = "Julia3GPrintResurrection"
 __plugin_version__ = "0.0.1"
