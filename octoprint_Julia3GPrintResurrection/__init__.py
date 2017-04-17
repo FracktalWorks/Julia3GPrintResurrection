@@ -8,9 +8,9 @@ import RPi.GPIO as GPIO
 
 # TODO:
 '''
-API to change settings, and pins
-API to Caliberate
-API to enable/Dissable sensor, and save this information
+Auto Resurrect
+Ask about ressurection when booting
+autobooting shouldnt clash with touchscreen operation
 '''
 
 
@@ -33,9 +33,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 
 	def on_after_startup(self):
 		'''
-        Runs after server startup.
-        initialises filaemnt sensor objects, depending on the settings from the config.yaml file
-        logs the number of filament sensors active
+        Gets the settings from the config.yamal file
         :return: None
         '''
 		self.DET_Pin = int(self._settings.get(["DET_Pin"]))
@@ -59,9 +57,18 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 			self._logger.info("Error while initialising MKS DET Pin")
 
 	def enableDET(self):
+		"""
+		Adds the interrupt detection for the MKS DET module.
+		To Do: check the polarity
+		:return:
+		"""
 		GPIO.add_event_detect(self.DET_Pin, GPIO.FALLING, callback=self.saveProgress, bouncetime=300)
 
 	def dissableDET(self):
+		"""
+		Remove interrupt detection on the MKS_DET pin
+		:return:
+		"""
 		GPIO.remove_event_detect(self.DET_Pin)
 
 	def get_settings_defaults(self):
@@ -87,8 +94,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 
 	def on_event(self, event, payload):
 		'''
-		Enables the filament sensor(s) if a print/resume command is triggered
-		Dissables the filament sensor when pause ic called.
+		Callback when an event is detected. depending on the event, different things are done.
 		:param event: event to respond to
 		:param payload:
 		:return:
@@ -109,10 +115,27 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 			self.data["t"] = payload["position"]["t"]
 			self.data["f"] = payload["position"]["f"]
 			self.on_settings_save(self.data)
+			self._printer.cancel_print()
 			self.savingProgress = False
 			self._logger.info("Print Resurrection: Print Progress saved")
 
+	def _send_status(self, status_type, status_value, status_description=""):
+		"""
+		sends a plugin message, from the SockJS server
+		:param status_type:
+		:param status_value:
+		:param status_description:
+		:return:
+		"""
+		self._plugin_manager.send_plugin_message(self._identifier,
+											 dict(type="status", status_type=status_type, status_value=status_value,
+												  status_description=status_description))
+
 	def cleanStoredFile(self):
+		"""
+		Clears all the stored data from the config.yaml file
+		:return:
+		"""
 		self.data = {"fileName": "None", "filePos": 0,
 					 "path": "None",
 					 "tool0Target": 0,
@@ -127,15 +150,18 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.on_settings_save(self.data)
 
 	def get_template_configs(self):
+		'''
+		Bindings for the jinja files
+		:return:
+		'''
 		return [dict(type="settings", custom_bindings=False)]
 
 	@octoprint.plugin.BlueprintPlugin.route("/isAvailable", methods=["GET"])
-	def saveProgressAPI(self):
+	def isAvailable(self):
 		'''
-		Checks and sends the pin configuration of the filament sensor(s)
-		:return: response  dict of the pin configuration
+		Checks if a files progress was stored
 		'''
-		if self.fileName != "None":
+		if self.fileName != "None" and self._printer.is_ready():
 			return jsonify(status='available', file = self.fileName)
 		else:
 			return jsonify(status='notAvailable')
@@ -143,13 +169,15 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 	@octoprint.plugin.BlueprintPlugin.route("/saveProgress", methods=["GET"])
 	def saveProgressAPI(self):
 		'''
-        Checks and sends the pin configuration of the filament sensor(s)
-        :return: response  dict of the pin configuration
+		API hook that calls the saveProgress function
         '''
 		self.saveProgress()
 		return jsonify(status='progress saved')
 
 	def saveProgress(self):
+		'''
+		Saves the progress of the file to be ressurected later
+		'''
 		try:
 			self._printer.pause_print()
 			temps =  self._printer.get_current_temperatures()
@@ -175,26 +203,29 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 			self.on_settings_save(self.data)
 			self._logger.info("Could not save settings, restoring defaults")
 
-
 	@octoprint.plugin.BlueprintPlugin.route("/resurrect", methods=["GET"])
 	def resurrectAPI(self):
 		'''
-		Checks and sends the pin configuration of the filament sensor(s)
-		:return: response  dict of the pin configuration
+		API that calls resurrect function
 		'''
 		self.resurrect()
 		# return an error or success
 		return jsonify(status='resurrected')
 
 	def resurrect(self):
+		"""
+		Function that actually performs the resurrection
+		:return:
+		"""
 		if self.fileName != "None":
-			self._printer.home(["x", "y", "z"])
 			if self.bedTarget > 0:
 				self._printer.set_temperature("bed", self.bedTarget)
 			if self.tool0Target > 0:
 				self._printer.set_temperature("tool0", self.tool0Target)
 			if self.tool1Target > 0:
 				self._printer.set_temperature("tool1", self.tool1Target)
+			self._printer.home("z")
+			self._printer.home(["x", "y"])
 			commands = ["G90",
 						"T{}".format(self.t),
 						"G92 E0",
@@ -207,9 +238,15 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 			self._printer.commands(commands)
 			filenameToSelect = self._file_manager.path_on_disk("local", self.path)
 			self._printer.select_file(path=filenameToSelect, sd=False, printAfterSelect=True, pos=self.filePos)
-
+			self._send_status(status_type="PRINT_RESURRECTION_STARTED", status_value=self.fileName,
+							  status_description="Print resurrection statred")
 
 	def on_settings_save(self, data):
+		"""
+		Saves and updates the file settings of resurection
+		:param data:
+		:return:
+		"""
 		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 		self.fileName = str(self._settings.get(["fileName"]))
 		self.filePos = int(self._settings.get(["filePos"]))
@@ -225,6 +262,10 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.f = float(self._settings.get(["f"]))
 
 	def get_update_information(self):
+		"""
+		Function for OTA update thrpugh the software update plugin
+		:return:
+		"""
 		return dict(
 			Julia3GPrintResurrection=dict(
 				displayName="Julia3GPrintResurrection",
@@ -241,7 +282,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		)
 
 __plugin_name__ = "Julia3GPrintResurrection"
-__plugin_version__ = "0.0.1"
+__plugin_version__ = "0.0.2"
 
 
 def __plugin_load__():
