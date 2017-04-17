@@ -42,13 +42,13 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.fileName = str(self._settings.get(["fileName"]))
 		self.filePos = int(self._settings.get(["filePos"]))
 		self.path = str(self._settings.get(["path"]))
-		self.tool0Target = int(self._settings.get(["tool0Target"]))
-		self.tool1Target = int(self._settings.get(["tool1Target"]))
-		self.bedTarget = int(self._settings.get(["bedTarget"]))
-		self.x = int(self._settings.get(["x"]))
-		self.y = int(self._settings.get(["y"]))
-		self.z = int(self._settings.get(["z"]))
-		self.e = int(self._settings.get(["e"]))
+		self.tool0Target = float(self._settings.get(["tool0Target"]))
+		self.tool1Target = float(self._settings.get(["tool1Target"]))
+		self.bedTarget = float(self._settings.get(["bedTarget"]))
+		self.x = float(self._settings.get(["x"]))
+		self.y = float(self._settings.get(["y"]))
+		self.z = float(self._settings.get(["z"]))
+		self.e = float(self._settings.get(["e"]))
 		self.t = int(self._settings.get(["t"]))
 		self.f = int(self._settings.get(["f"]))
 		self.data = {}
@@ -93,8 +93,9 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		:param payload:
 		:return:
 		'''
-		if event in (Events.PRINT_STARTED):  # If a new print is beginning
+		if event in (Events.PRINT_STARTED, Events.PRINT_RESUMED):  # If a new print is beginning
 			self.enableDET()
+			self.cleanStoredFile()
 			self._logger.info("Enabaling DET module")
 		elif event in (
 				Events.PRINT_DONE, Events.PRINT_FAILED, Events.PRINT_CANCELLED, Events.ERROR):
@@ -111,9 +112,33 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 			self.savingProgress = False
 			self._logger.info("Print Resurrection: Print Progress saved")
 
+	def cleanStoredFile(self):
+		self.data = {"fileName": "None", "filePos": 0,
+					 "path": "None",
+					 "tool0Target": 0,
+					 "tool1Target": 0,
+					 "bedTarget": 0,
+					 "x": 0,
+					 "y": 0,
+					 "z": 0,
+					 "e": 0,
+					 "t": 0,
+					 "f": 0, }
+		self.on_settings_save(self.data)
 
 	def get_template_configs(self):
 		return [dict(type="settings", custom_bindings=False)]
+
+	@octoprint.plugin.BlueprintPlugin.route("/isAvailable", methods=["GET"])
+	def saveProgressAPI(self):
+		'''
+		Checks and sends the pin configuration of the filament sensor(s)
+		:return: response  dict of the pin configuration
+		'''
+		if self.fileName != "None":
+			return jsonify(status='available', file = self.fileName)
+		else:
+			return jsonify(status='notAvailable')
 
 	@octoprint.plugin.BlueprintPlugin.route("/saveProgress", methods=["GET"])
 	def saveProgressAPI(self):
@@ -122,32 +147,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
         :return: response  dict of the pin configuration
         '''
 		self.saveProgress()
-		# return an error or success
 		return jsonify(status='progress saved')
-
-	@octoprint.plugin.BlueprintPlugin.route("/resurrect", methods=["GET"])
-	def resurrectAPI(self):
-		'''
-		Checks and sends the pin configuration of the filament sensor(s)
-		:return: response  dict of the pin configuration
-		'''
-		self.resurrect()
-		# return an error or success
-		return jsonify(status='resurrected')
-
-	def resurrect(self):
-		if self.fileName != "None":
-			self._printer.home("x", "y", "z")
-			if self.bedTarget > 0:
-				self._printer.set_temperature("bed", self.bedTarget)
-			if self.tool0Target > 0:
-				self._printer.set_temperature("tool0", self.bedTarget)
-			if self.tool1Target > 0:
-				self._printer.set_temperature("tool1", self.bedTarget)
-
-			filenameToSelect = self._file_manager.path_on_disk("local", self.path)
-			self._printer.select_file(path=filenameToSelect, sd=False, printAfterSelect=True, pos=self.filePos)
-
 
 	def saveProgress(self):
 		try:
@@ -175,20 +175,54 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 			self.on_settings_save(self.data)
 			self._logger.info("Could not save settings, restoring defaults")
 
+
+	@octoprint.plugin.BlueprintPlugin.route("/resurrect", methods=["GET"])
+	def resurrectAPI(self):
+		'''
+		Checks and sends the pin configuration of the filament sensor(s)
+		:return: response  dict of the pin configuration
+		'''
+		self.resurrect()
+		# return an error or success
+		return jsonify(status='resurrected')
+
+	def resurrect(self):
+		if self.fileName != "None":
+			self._printer.home(["x", "y", "z"])
+			if self.bedTarget > 0:
+				self._printer.set_temperature("bed", self.bedTarget)
+			if self.tool0Target > 0:
+				self._printer.set_temperature("tool0", self.tool0Target)
+			if self.tool1Target > 0:
+				self._printer.set_temperature("tool1", self.tool1Target)
+			commands = ["G90",
+						"T{}".format(self.t),
+						"G92 E0",
+						"G1 F200 E5",
+						"G1 F{}".format(self.f),
+						"G92 E{}".format(self.e),
+						"G1 X{} Y{}".format(self.x,self.y),
+						"G1 Z{}".format(self.z)
+						]
+			self._printer.commands(commands)
+			filenameToSelect = self._file_manager.path_on_disk("local", self.path)
+			self._printer.select_file(path=filenameToSelect, sd=False, printAfterSelect=True, pos=self.filePos)
+
+
 	def on_settings_save(self, data):
 		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 		self.fileName = str(self._settings.get(["fileName"]))
 		self.filePos = int(self._settings.get(["filePos"]))
 		self.path = str(self._settings.get(["path"]))
-		self.tool0Target = int(self._settings.get(["tool0Target"]))
-		self.tool1Target = int(self._settings.get(["tool1Target"]))
-		self.bedTarget = int(self._settings.get(["bedTarget"]))
-		self.x = int(self._settings.get(["x"]))
-		self.y = int(self._settings.get(["y"]))
-		self.z = int(self._settings.get(["z"]))
-		self.e = int(self._settings.get(["e"]))
-		self.t = int(self._settings.get(["t"]))
-		self.f = int(self._settings.get(["f"]))
+		self.tool0Target = float(self._settings.get(["tool0Target"]))
+		self.tool1Target = float(self._settings.get(["tool1Target"]))
+		self.bedTarget = float(self._settings.get(["bedTarget"]))
+		self.x = float(self._settings.get(["x"]))
+		self.y = float(self._settings.get(["y"]))
+		self.z = float(self._settings.get(["z"]))
+		self.e = float(self._settings.get(["e"]))
+		self.t = float(self._settings.get(["t"]))
+		self.f = float(self._settings.get(["f"]))
 
 	def get_update_information(self):
 		return dict(
