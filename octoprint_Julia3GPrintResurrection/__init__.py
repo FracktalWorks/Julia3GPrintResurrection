@@ -283,7 +283,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		)
 
 __plugin_name__ = "Julia3GPrintResurrection"
-__plugin_version__ = "0.0.3"
+__plugin_version__ = "0.0.4"
 
 
 def __plugin_load__():
