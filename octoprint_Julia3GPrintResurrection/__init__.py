@@ -198,7 +198,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.saveProgress()
 		return jsonify(status='progress saved')
 
-	def saveProgress(self):
+	def saveProgress(self,*args):
 		'''
 		Saves the progress of the file to be ressurected later
 		'''
@@ -288,7 +288,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		)
 
 __plugin_name__ = "Julia3GPrintResurrection"
-__plugin_version__ = "0.0.7"
+__plugin_version__ = "0.0.8"
 
 
 def __plugin_load__():
