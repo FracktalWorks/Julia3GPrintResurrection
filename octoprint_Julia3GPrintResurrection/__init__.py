@@ -5,7 +5,7 @@ import octoprint.plugin
 from octoprint.events import eventManager, Events
 from flask import jsonify, make_response, request
 import RPi.GPIO as GPIO
-
+from octoprint.settings import settings
 # TODO:
 '''
 Auto Resurrect
@@ -107,7 +107,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 				Events.PRINT_DONE, Events.PRINT_FAILED, Events.PRINT_CANCELLED, Events.ERROR):
 			self.dissableDET()
 			self._logger.info("Dissabling DET module")
-		elif (event in Events.PRINT_PAUSED) and (self.savingProgress == True):
+		elif event in Events.PRINT_PAUSED:
 			try:
 				temps =  self._printer.get_current_temperatures()
 				file = self._printer.get_current_data()
@@ -122,9 +122,11 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 				self.data["x"] = payload["position"]["x"]
 				self.data["t"] = payload["position"]["t"]
 				self.data["f"] = payload["position"]["f"]
+				self._logger.info(self.data)
 				self.on_settings_save(self.data)
 				self.savingProgress = False
 				self._logger.info("Print Resurrection: Print Progress saved")
+				self.dissableDET()
 			except:
 				self.data = {"fileName": "None", "filePos": 0,
 							 "path": "None",
@@ -139,6 +141,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 							 "f": 0, }
 				self.on_settings_save(self.data)
 				self._logger.info("Could not save settings, restoring defaults")
+				self.dissableDET()
 
 	def _send_status(self, status_type, status_value, status_description=""):
 		"""
@@ -248,8 +251,9 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		:param data:
 		:return:
 		"""
+		s=settings()
 		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
-		#self._settings.set("fileName",data["fileName"])
+		s.save()
 		self.fileName = str(self._settings.get(["fileName"]))
 		self.filePos = int(self._settings.get(["filePos"]))
 		self.path = str(self._settings.get(["path"]))
@@ -284,7 +288,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		)
 
 __plugin_name__ = "Julia3GPrintResurrection"
-__plugin_version__ = "0.0.6"
+__plugin_version__ = "0.0.7"
 
 
 def __plugin_load__():
@@ -295,3 +299,4 @@ def __plugin_load__():
 	__plugin_hooks__ = {
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
 	}
+
