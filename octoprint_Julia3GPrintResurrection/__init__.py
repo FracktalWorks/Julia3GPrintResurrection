@@ -41,7 +41,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.filePos = int(self._settings.get(["filePos"]))
 		self.path = str(self._settings.get(["path"]))
 		self.tool0Target = float(self._settings.get(["tool0Target"]))
-		self.tool1Target = float(self._settings.get(["tool1Target"]))
+		#self.tool1Target = float(self._settings.get(["tool1Target"]))
 		self.bedTarget = float(self._settings.get(["bedTarget"]))
 		self.x = float(self._settings.get(["x"]))
 		self.y = float(self._settings.get(["y"]))
@@ -62,14 +62,16 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		To Do: check the polarity
 		:return:
 		"""
-		GPIO.add_event_detect(self.DET_Pin, GPIO.FALLING, callback=self.saveProgress, bouncetime=300)
+		#GPIO.add_event_detect(self.DET_Pin, GPIO.FALLING, callback=self.saveProgress, bouncetime=300)
+		pass
 
 	def dissableDET(self):
 		"""
 		Remove interrupt detection on the MKS_DET pin
 		:return:
 		"""
-		GPIO.remove_event_detect(self.DET_Pin)
+		#GPIO.remove_event_detect(self.DET_Pin)
+		pass
 
 	def get_settings_defaults(self):
 		'''
@@ -82,7 +84,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 			path="None",
 			filePos=0,
 			tool0Target=0,
-			tool1Target=0,
+			#tool1Target=0,
 			bedTarget=0,
 			x = 0,
 			y = 0,
@@ -114,7 +116,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 				self.data = {"fileName": file["job"]["file"]["name"], "filePos": file["progress"]["filepos"],
 						"path": file["job"]["file"]["path"],
 						"tool0Target": temps["tool0"]["target"],
-						"tool1Target": temps["tool1"]["target"],
+						#"tool1Target": temps["tool1"]["target"],
 						"bedTarget": temps["bed"]["target"]}
 				self.data["e"] = payload["position"]["e"]
 				self.data["z"] = payload["position"]["z"]
@@ -131,7 +133,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 				self.data = {"fileName": "None", "filePos": 0,
 							 "path": "None",
 							 "tool0Target": 0,
-							 "tool1Target": 0,
+							 #"tool1Target": 0,
 							 "bedTarget": 0,
 							 "x": 0,
 							 "y": 0,
@@ -163,7 +165,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.data = {"fileName": "None", "filePos": 0,
 					 "path": "None",
 					 "tool0Target": 0,
-					 "tool1Target": 0,
+					 #"tool1Target": 0,
 					 "bedTarget": 0,
 					 "x": 0,
 					 "y": 0,
@@ -226,8 +228,8 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 				self._printer.set_temperature("bed", self.bedTarget)
 			if self.tool0Target > 0:
 				self._printer.set_temperature("tool0", self.tool0Target)
-			if self.tool1Target > 0:
-				self._printer.set_temperature("tool1", self.tool1Target)
+			#if self.tool1Target > 0:
+			#	self._printer.set_temperature("tool1", self.tool1Target)
 			self._printer.home("z")
 			self._printer.home(["x", "y"])
 			commands = ["G90",
@@ -257,7 +259,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.filePos = int(self._settings.get(["filePos"]))
 		self.path = str(self._settings.get(["path"]))
 		self.tool0Target = float(self._settings.get(["tool0Target"]))
-		self.tool1Target = float(self._settings.get(["tool1Target"]))
+		#self.tool1Target = float(self._settings.get(["tool1Target"]))
 		self.bedTarget = float(self._settings.get(["bedTarget"]))
 		self.x = float(self._settings.get(["x"]))
 		self.y = float(self._settings.get(["y"]))
@@ -287,7 +289,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		)
 
 __plugin_name__ = "Julia3GPrintResurrection"
-__plugin_version__ = "1.0.0"
+__plugin_version__ = "1.0.1"
 
 
 def __plugin_load__():
