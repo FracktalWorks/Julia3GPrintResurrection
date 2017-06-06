@@ -251,9 +251,8 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		:param data:
 		:return:
 		"""
-		s=settings()
 		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
-		s.save()
+		self._settings.save()
 		self.fileName = str(self._settings.get(["fileName"]))
 		self.filePos = int(self._settings.get(["filePos"]))
 		self.path = str(self._settings.get(["path"]))
@@ -288,7 +287,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		)
 
 __plugin_name__ = "Julia3GPrintResurrection"
-__plugin_version__ = "0.0.8"
+__plugin_version__ = "1.0.0"
 
 
 def __plugin_load__():
