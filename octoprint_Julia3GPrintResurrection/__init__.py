@@ -36,12 +36,11 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
         Gets the settings from the config.yamal file
         :return: None
         '''
-		self.DET_Pin = int(self._settings.get(["DET_Pin"]))
 		self.fileName = str(self._settings.get(["fileName"]))
 		self.filePos = int(self._settings.get(["filePos"]))
 		self.path = str(self._settings.get(["path"]))
 		self.tool0Target = float(self._settings.get(["tool0Target"]))
-		#self.tool1Target = float(self._settings.get(["tool1Target"]))
+		self.tool1Target = float(self._settings.get(["tool1Target"]))
 		self.bedTarget = float(self._settings.get(["bedTarget"]))
 		self.x = float(self._settings.get(["x"]))
 		self.y = float(self._settings.get(["y"]))
@@ -51,27 +50,6 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.f = int(self._settings.get(["f"]))
 		self.data = {}
 		self.savingProgress = False
-		try:
-			GPIO.setup(self.DET_Pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-		except:
-			self._logger.info("Error while initialising MKS DET Pin")
-
-	def enableDET(self):
-		"""
-		Adds the interrupt detection for the MKS DET module.
-		To Do: check the polarity
-		:return:
-		"""
-		#GPIO.add_event_detect(self.DET_Pin, GPIO.FALLING, callback=self.saveProgress, bouncetime=300)
-		pass
-
-	def dissableDET(self):
-		"""
-		Remove interrupt detection on the MKS_DET pin
-		:return:
-		"""
-		#GPIO.remove_event_detect(self.DET_Pin)
-		pass
 
 	def get_settings_defaults(self):
 		'''
@@ -79,12 +57,11 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
         :return:
         '''
 		return dict(
-			DET_Pin=19,  # MKS_DET
 			fileName="None",
 			path="None",
 			filePos=0,
 			tool0Target=0,
-			#tool1Target=0,
+			tool1Target=0,
 			bedTarget=0,
 			x = 0,
 			y = 0,
@@ -102,13 +79,11 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		:return:
 		'''
 		if event in (Events.PRINT_STARTED, Events.PRINT_RESUMED):  # If a new print is beginning
-			self.enableDET()
 			self.cleanStoredFile()
-			self._logger.info("Enabaling DET module")
+			self._logger.info("Enabaling Resurection")
 		elif event in (
 				Events.PRINT_DONE, Events.PRINT_FAILED, Events.PRINT_CANCELLED, Events.ERROR):
-			self.dissableDET()
-			self._logger.info("Dissabling DET module")
+			self._logger.info("Dissabling Resurection")
 		elif event in Events.PRINT_PAUSED:
 			try:
 				temps =  self._printer.get_current_temperatures()
@@ -116,7 +91,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 				self.data = {"fileName": file["job"]["file"]["name"], "filePos": file["progress"]["filepos"],
 						"path": file["job"]["file"]["path"],
 						"tool0Target": temps["tool0"]["target"],
-						#"tool1Target": temps["tool1"]["target"],
+						"tool1Target": temps["tool1"]["target"],
 						"bedTarget": temps["bed"]["target"]}
 				self.data["e"] = payload["position"]["e"]
 				self.data["z"] = payload["position"]["z"]
@@ -128,12 +103,11 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 				self.on_settings_save(self.data)
 				self.savingProgress = False
 				self._logger.info("Print Resurrection: Print Progress saved")
-				self.dissableDET()
 			except:
 				self.data = {"fileName": "None", "filePos": 0,
 							 "path": "None",
 							 "tool0Target": 0,
-							 #"tool1Target": 0,
+							 "tool1Target": 0,
 							 "bedTarget": 0,
 							 "x": 0,
 							 "y": 0,
@@ -143,7 +117,6 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 							 "f": 0, }
 				self.on_settings_save(self.data)
 				self._logger.info("Could not save settings, restoring defaults")
-				self.dissableDET()
 
 	def _send_status(self, status_type, status_value, status_description=""):
 		"""
@@ -165,7 +138,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.data = {"fileName": "None", "filePos": 0,
 					 "path": "None",
 					 "tool0Target": 0,
-					 #"tool1Target": 0,
+					 "tool1Target": 0,
 					 "bedTarget": 0,
 					 "x": 0,
 					 "y": 0,
@@ -228,8 +201,8 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 				self._printer.set_temperature("bed", self.bedTarget)
 			if self.tool0Target > 0:
 				self._printer.set_temperature("tool0", self.tool0Target)
-			#if self.tool1Target > 0:
-			#	self._printer.set_temperature("tool1", self.tool1Target)
+			if self.tool1Target > 0:
+				self._printer.set_temperature("tool1", self.tool1Target)
 			self._printer.home("z")
 			self._printer.home(["x", "y"])
 			commands = ["G90",
@@ -259,7 +232,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		self.filePos = int(self._settings.get(["filePos"]))
 		self.path = str(self._settings.get(["path"]))
 		self.tool0Target = float(self._settings.get(["tool0Target"]))
-		#self.tool1Target = float(self._settings.get(["tool1Target"]))
+		self.tool1Target = float(self._settings.get(["tool1Target"]))
 		self.bedTarget = float(self._settings.get(["bedTarget"]))
 		self.x = float(self._settings.get(["x"]))
 		self.y = float(self._settings.get(["y"]))
@@ -289,7 +262,7 @@ class Julia3GPrintResurrection(octoprint.plugin.StartupPlugin,
 		)
 
 __plugin_name__ = "Julia3GPrintResurrection"
-__plugin_version__ = "1.0.1"
+__plugin_version__ = "1.0.2"
 
 
 def __plugin_load__():
